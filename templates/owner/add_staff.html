@@ -1,0 +1,4 @@
+{% extends "owner/base.html" %}
+{% block owner_content %}
+<div class="card shadow"><div class="card-header bg-success text-white"><h3 class="mb-0">Add team member</h3></div><div class="card-body p-4"><form method="post" enctype="multipart/form-data">{% csrf_token %}{% for field in form %}<div class="mb-3">{% if field.field.widget.input_type == 'checkbox' %}<div class="form-check">{{ field }}<label class="form-check-label">{{ field.label }}</label></div>{% else %}<label class="form-label">{{ field.label }}</label>{{ field }}{% endif %}{% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}{{ field.errors }}</div>{% endfor %}<button class="btn btn-success"><i class="bi bi-person-plus"></i> Add staff member</button><a href="{% url 'owner_staff' %}" class="btn btn-outline-secondary">Cancel</a></form></div></div>
+{% endblock %}

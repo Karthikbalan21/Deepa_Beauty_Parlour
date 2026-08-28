@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="row">
+
+    <div class="col-md-3">
+
+        <div class="list-group shadow">
+
+            <a href="{% url 'owner_dashboard' %}" class="list-group-item list-group-item-action">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+
+            <a href="{% url 'owner_appointments' %}" class="list-group-item list-group-item-action">
+                <i class="bi bi-calendar-check"></i> Appointments
+            </a>
+
+            <a href="{% url 'owner_services' %}" class="list-group-item list-group-item-action">
+                <i class="bi bi-scissors"></i> Services
+            </a>
+
+            <a href="{% url 'owner_staff' %}" class="list-group-item list-group-item-action">
+                <i class="bi bi-people"></i> Staff
+            </a>
+
+            <a href="{% url 'owner_reports' %}" class="list-group-item list-group-item-action">
+                <i class="bi bi-bar-chart"></i> Reports
+            </a>
+
+            <a href="{% url 'profile' %}" class="list-group-item list-group-item-action">
+                <i class="bi bi-person-circle"></i> My Profile
+            </a>
+
+            <a href="{% url 'logout' %}" class="list-group-item list-group-item-action text-danger">
+                <i class="bi bi-box-arrow-right"></i> Logout
+            </a>
+
+        </div>
+
+    </div>
+
+    <div class="col-md-9">
+
+        {% block owner_content %}
+        {% endblock %}
+
+    </div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "dashboard/dashboard_base.html" %}
+
+{% block dashboard_content %}
+
+<div class="card">
+
+    <div class="card-header bg-primary text-white">
+        <h3 class="mb-0 page-title">
+            <i class="bi bi-calendar-plus"></i>
+            Book Appointment
+        </h3>
+    </div>
+
+    <div class="card-body">
+
+        <form method="post" id="booking-form">
+
+            {% csrf_token %}
+
+            <div class="row">
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Salon</label>
+                    {{ form.salon }}{{ form.salon.errors }}
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Service</label>
+                    {{ form.service }}{{ form.service.errors }}
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Staff</label>
+                    {{ form.staff }}{{ form.staff.errors }}
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Appointment Date</label>
+                    {{ form.appointment_date }}{{ form.appointment_date.errors }}
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Appointment Time</label>
+                    {{ form.appointment_time }}{{ form.appointment_time.errors }}
+                </div>
+                <div class="col-12 mb-3">
+                    <label class="form-label">Notes</label>
+                    {{ form.notes }}{{ form.notes.errors }}
+                </div>
+            </div>
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+            <button type="submit" class="btn btn-primary" id="booking-submit">
+                <i class="bi bi-check-circle"></i>
+                {% if rescheduling %}Save new time{% else %}Reserve appointment{% endif %}
+            </button>
+
+            <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+                Cancel
+            </a>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

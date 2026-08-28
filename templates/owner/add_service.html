@@ -1,0 +1,71 @@
+{% extends "owner/base.html" %}
+
+{% block owner_content %}
+
+<div class="card shadow">
+
+    <div class="card-header bg-success text-white">
+
+        <h3>Add New Service</h3>
+
+    </div>
+
+    <div class="card-body">
+
+        <form method="POST" enctype="multipart/form-data">
+
+            {% csrf_token %}
+
+            <div class="mb-3">
+
+                <label>Name</label>
+
+                {{ form.name }}
+
+            </div>
+
+            <div class="mb-3">
+
+                <label>Price</label>
+
+                {{ form.price }}
+
+            </div>
+
+            <div class="mb-3">
+
+                <label>Duration (Minutes)</label>
+
+                {{ form.duration }}
+
+            </div>
+
+            <div class="mb-3">
+
+                <label>Description</label>
+
+                {{ form.description }}
+
+            </div>
+            <div class="mb-3"><label>Image</label>{{ form.image }}</div><div class="form-check mb-3">{{ form.is_available }} <label class="form-check-label">Available for booking</label></div>
+
+            <button class="btn btn-success">
+
+                Save
+
+            </button>
+
+            <a href="{% url 'owner_services' %}"
+               class="btn btn-secondary">
+
+                Cancel
+
+            </a>
+
+        </form>
+
+    </div>
+
+</div>
+
+{% endblock %}

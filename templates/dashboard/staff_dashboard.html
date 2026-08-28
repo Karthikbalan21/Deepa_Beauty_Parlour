@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <div><h2 class="page-title mb-1">Staff dashboard</h2><p class="text-muted mb-0">Appointments and payment checks assigned to you.</p></div>
+  <span class="badge bg-primary fs-6">{{ weekly_appointments }} appointments this week</span>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3"><div class="card metric h-100"><small class="text-muted">Today’s appointments</small><h2>{{ today|length }}</h2></div></div>
+  <div class="col-6 col-lg-3"><div class="card metric h-100"><small class="text-muted">Pending appointments</small><h2 data-metric="pending">{{ pending }}</h2></div></div>
+  <div class="col-6 col-lg-3"><div class="card metric h-100"><small class="text-muted">Completed today</small><h2 data-metric="completed">{{ completed }}</h2></div></div>
+  <div class="col-6 col-lg-3"><div class="card metric h-100"><small class="text-muted">Today’s revenue</small><h2>₹<span data-metric="daily_revenue">{{ daily_revenue }}</span></h2></div></div>
+</div>
+
+<div class="card mb-4"><div class="card-body p-4">
+  <div class="d-flex flex-wrap justify-content-between gap-2 mb-3"><h5 class="mb-0">Today’s schedule</h5><small class="text-muted">Monthly revenue: ₹{{ monthly_revenue }} · Cancelled today: {{ cancelled }}</small></div>
+  {% for a in today %}
+    <div class="d-flex flex-wrap justify-content-between align-items-center border-top py-3 gap-2">
+      <div><strong>{{ a.appointment_time|time:"g:i A" }}</strong> · {{ a.customer.get_full_name|default:a.customer.username }}<br><small class="text-muted">{{ a.service.name }} · {{ a.customer.phone|default:"No phone provided" }}</small></div>
+      <span class="badge {% if a.status == 'COMPLETED' %}bg-success{% elif a.status == 'CANCELLED' %}bg-danger{% elif a.status == 'PENDING' %}bg-warning text-dark{% else %}bg-primary{% endif %}">{{ a.get_status_display }}</span>
+    </div>
+  {% empty %}<p class="text-muted mb-0">No appointments assigned to you today.</p>{% endfor %}
+</div></div>
+
+<div class="card"><div class="card-body p-0">
+  <div class="p-4 border-bottom"><h5 class="mb-0">Assigned appointments</h5></div>
+  <div class="table-responsive"><table class="table align-middle mb-0">
+    <thead><tr><th>Customer</th><th>Service & schedule</th><th>Notes</th><th>Payment proof</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+    <tbody>{% for a in recent %}<tr>
+      <td><strong>{{ a.customer.get_full_name|default:a.customer.username }}</strong><br><small class="text-muted">{{ a.customer.phone|default:"—" }}</small></td>
+      <td>{{ a.service.name }}<br><small class="text-muted">{{ a.appointment_date }} · {{ a.appointment_time|time:"g:i A" }}</small></td>
+      <td><small>{{ a.notes|default:"—" }}</small></td>
+      <td>{% if a.payment and a.payment.screenshot %}<a href="{{ a.payment.screenshot.url }}" target="_blank" rel="noopener"><img src="{{ a.payment.screenshot.url }}" alt="Payment proof" class="rounded border" style="width:46px;height:46px;object-fit:cover"></a>{% elif a.payment %}<small class="text-muted">Awaiting upload</small>{% else %}—{% endif %}</td>
+      <td><span class="badge {% if a.status == 'COMPLETED' %}bg-success{% elif a.status == 'CANCELLED' %}bg-danger{% elif a.status == 'PENDING' %}bg-warning text-dark{% else %}bg-primary{% endif %}">{{ a.get_status_display }}</span>{% if a.payment %}<br><small class="text-muted">{{ a.payment.get_status_display }}</small>{% endif %}</td>
+      <td class="text-end"><div class="btn-group btn-group-sm">
+        {% if a.status == 'PENDING' and a.payment and a.payment.screenshot %}
+          <form class="ajax-status" method="post" action="{% url 'verify_staff_payment' a.payment.id 'VERIFIED' %}">{% csrf_token %}<button class="btn btn-outline-primary">Verify & confirm</button></form>
+          <form class="ajax-status" method="post" action="{% url 'verify_staff_payment' a.payment.id 'REJECTED' %}">{% csrf_token %}<button class="btn btn-outline-danger">Reject</button></form>
+        {% elif a.status == 'CONFIRMED' %}
+          <form class="ajax-status" method="post" action="{% url 'update_staff_appointment' a.id 'COMPLETED' %}">{% csrf_token %}<button class="btn btn-outline-success">Complete</button></form>
+          <form class="ajax-status" method="post" action="{% url 'update_staff_appointment' a.id 'CANCELLED' %}">{% csrf_token %}<button class="btn btn-outline-danger">Cancel</button></form>
+        {% endif %}
+      </div></td>
+    </tr>{% empty %}<tr><td colspan="6" class="text-center text-muted py-5">No assigned appointments in the last 30 days.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div></div>
+<script>
+document.querySelectorAll('.ajax-status').forEach(form => form.addEventListener('submit', async event => {
+  event.preventDefault();
+  const button = form.querySelector('button');
+  button.disabled = true;
+  const response = await fetch(form.action, {method: 'POST', headers: {'X-CSRFToken': form.querySelector('[name=csrfmiddlewaretoken]').value, 'Accept': 'application/json'}});
+  const data = await response.json();
+  if (!data.ok) { button.disabled = false; alert(data.message || 'Unable to update this appointment.'); return; }
+  Object.entries(data.metrics).forEach(([name, value]) => document.querySelectorAll(`[data-metric="${name}"]`).forEach(element => element.textContent = value));
+  const row = form.closest('tr');
+  const status = row.querySelector('td:nth-child(5) .badge');
+  status.textContent = data.status;
+  status.className = `badge ${data.status === 'Completed' ? 'bg-success' : data.status === 'Cancelled' ? 'bg-danger' : 'bg-primary'}`;
+  form.closest('.btn-group').innerHTML = '<span class="text-muted small">Updated</span>';
+}));
+</script>
+{% endblock %}

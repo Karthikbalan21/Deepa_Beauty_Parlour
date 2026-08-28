@@ -1,0 +1,108 @@
+{% extends "owner/base.html" %}
+
+{% block owner_content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3"><h2 class="page-title mb-0">Reports & analytics</h2><a href="{% url 'download_report' %}" class="btn btn-primary"><i class="bi bi-download"></i> Export Excel / CSV</a></div>
+
+<div class="card shadow">
+
+    <div class="card-header bg-dark text-white">
+
+        <h3>Reports</h3>
+
+    </div>
+
+    <div class="card-body">
+
+        <div class="row">
+
+            <div class="col-md-4 mb-3">
+
+                <div class="card text-center">
+
+                    <div class="card-body">
+
+                        <h2>{{ total }}</h2>
+
+                        Total Appointments
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="col-md-4 mb-3">
+
+                <div class="card text-center">
+
+                    <div class="card-body">
+
+                        <h2>{{ pending }}</h2>
+
+                        Pending
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="col-md-4 mb-3">
+
+                <div class="card text-center">
+
+                    <div class="card-body">
+
+                        <h2>{{ confirmed }}</h2>
+
+                        Confirmed
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="col-md-4 mb-3">
+
+                <div class="card text-center">
+
+                    <div class="card-body">
+
+                        <h2>{{ completed }}</h2>
+
+                        Completed
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="col-md-4 mb-3">
+
+                <div class="card text-center">
+
+                    <div class="card-body">
+
+                        <h2>{{ cancelled }}</h2>
+
+                        Cancelled
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<div class="row g-3 mt-1"><div class="col-md-7"><div class="card"><div class="card-body"><h5>Most booked services</h5><canvas id="serviceChart"></canvas></div></div></div><div class="col-md-5"><div class="card"><div class="card-body"><h5>Booking status</h5><canvas id="statusChart"></canvas></div></div></div></div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script>new Chart(document.getElementById('serviceChart'),{type:'bar',data:{labels:{{ chart_labels|safe }},datasets:[{label:'Bookings',data:{{ chart_values|safe }},backgroundColor:'#6d4aff',borderRadius:8}]},options:{responsive:true,plugins:{legend:{display:false}}}});new Chart(document.getElementById('statusChart'),{type:'doughnut',data:{labels:['Pending','Confirmed','Completed','Cancelled'],datasets:[{data:{{ status_values|safe }},backgroundColor:['#f5b700','#6d4aff','#18a87c','#ef5b5b']}]},options:{responsive:true}});</script>
+
+{% endblock %}
