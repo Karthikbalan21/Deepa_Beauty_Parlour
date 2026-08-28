@@ -1,6 +1,4 @@
 from django import forms
-from django.contrib.auth.password_validation import validate_password
-
 from accounts.models import User
 from .models import Staff
 
@@ -38,8 +36,6 @@ class StaffForm(forms.ModelForm):
             self.add_error("username", "This username is already in use.")
         if username and not password:
             self.add_error("password", "Enter a password to create this staff login.")
-        if password:
-            validate_password(password)
         if password and not username:
             self.add_error("username", "Enter a username for the staff login.")
         return cleaned

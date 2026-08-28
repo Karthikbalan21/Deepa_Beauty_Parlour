@@ -1,1 +1,78 @@
-{% extends "base.html" %}{% block title %}Create account | SalonSync{% endblock %}{% block content %}<div class="auth-shell position-relative"><div class="auth-orb"></div><div class="card auth-card"><div class="card-body p-4 p-md-5"><div class="text-center mb-4"><p class="text-uppercase small text-warning fw-bold mb-2">Begin your ritual</p><h1 class="page-title">Join SalonSync.</h1><p class="text-muted">A beautiful way to manage every salon moment.</p></div><form method="post">{% csrf_token %}{% for field in form %}<div class="mb-3"><label class="form-label">{{ field.label }}</label>{{ field }}{% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}{{ field.errors }}</div>{% endfor %}<button class="btn btn-primary w-100" type="submit">Create my account <i class="bi bi-arrow-right"></i></button></form><p class="text-center text-muted mt-4 mb-0">Already a member? <a class="text-warning" href="{% url 'login' %}">Sign in</a></p></div></div></div>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Create account | Deepa Beauty Parlour{% endblock %}
+{% block content %}
+<div class="auth-shell position-relative">
+  <div class="auth-orb"></div>
+  <div class="card auth-card">
+    <div class="card-body p-4 p-md-5">
+      <div class="text-center mb-4">
+        <p class="text-uppercase small text-warning fw-bold mb-2">Begin your ritual</p>
+        <h1 class="page-title">Join Deepa Beauty Parlour.</h1>
+        <p class="text-muted">Create your account in just a moment.</p>
+      </div>
+      <form method="post" id="register-form" novalidate>
+        {% csrf_token %}
+        {% for field in form %}
+          <div class="mb-3 {% if field.name == 'password1' or field.name == 'password2' %}password-field{% endif %}">
+            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {% if field.name == 'password1' or field.name == 'password2' %}
+              <div class="input-group">
+                {{ field }}
+                <button class="btn btn-outline-secondary password-toggle" type="button" aria-label="Show password" data-target="{{ field.id_for_label }}"><i class="bi bi-eye"></i></button>
+              </div>
+            {% else %}
+              {{ field }}
+            {% endif %}
+            {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+            <div class="invalid-feedback" data-feedback="{{ field.id_for_label }}"></div>
+            {{ field.errors }}
+          </div>
+        {% endfor %}
+        <button class="btn btn-primary w-100" type="submit">Create my account <i class="bi bi-arrow-right"></i></button>
+      </form>
+      <p class="text-center text-muted mt-4 mb-0">Already a member? <a class="text-warning" href="{% url 'login' %}">Sign in</a></p>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+  const form = document.getElementById('register-form');
+  const password = document.getElementById('id_password1');
+  const confirmation = document.getElementById('id_password2');
+  const phone = document.getElementById('id_phone');
+  const feedback = input => document.querySelector(`[data-feedback="${input.id}"]`);
+  const showFeedback = (input, valid, message = '') => {
+    input.setCustomValidity(valid ? '' : message);
+    input.classList.toggle('is-valid', valid && Boolean(input.value));
+    input.classList.toggle('is-invalid', !valid && Boolean(input.value));
+    if (feedback(input)) feedback(input).textContent = message;
+  };
+  const nativeValid = input => { input.setCustomValidity(''); return input.checkValidity(); };
+  const validatePasswordMatch = () => {
+    showFeedback(password, nativeValid(password), password.validationMessage);
+    showFeedback(confirmation, nativeValid(confirmation) && (!confirmation.value || password.value === confirmation.value), 'Passwords do not match.');
+  };
+  const validatePhone = () => {
+    const digits = (phone.value.match(/\d/g) || []).length;
+    const validChars = /^[0-9+\- ()]*$/.test(phone.value);
+    showFeedback(phone, !phone.value || (validChars && digits >= 7 && digits <= 15), 'Enter a valid phone number with 7 to 15 digits.');
+  };
+  form.querySelectorAll('input, select').forEach(input => input.addEventListener('input', () => {
+    if (input === confirmation || input === password) validatePasswordMatch();
+    else if (input === phone) validatePhone();
+    else showFeedback(input, nativeValid(input), input.validationMessage);
+  }));
+  document.querySelectorAll('.password-toggle').forEach(button => button.addEventListener('click', () => {
+    const input = document.getElementById(button.dataset.target);
+    const visible = input.type === 'text'; input.type = visible ? 'password' : 'text';
+    button.setAttribute('aria-label', visible ? 'Show password' : 'Hide password');
+    button.querySelector('i').className = visible ? 'bi bi-eye' : 'bi bi-eye-slash';
+  }));
+  form.addEventListener('submit', event => {
+    validatePasswordMatch(); validatePhone();
+    form.querySelectorAll('input, select').forEach(input => { if (input !== confirmation && input !== phone) showFeedback(input, nativeValid(input), input.validationMessage); });
+    if (!form.checkValidity()) { event.preventDefault(); form.classList.add('was-validated'); }
+  });
+})();
+</script>
+{% endblock %}

@@ -43,7 +43,6 @@ class AppointmentFormTests(TestCase):
 
     def form_data(self, appointment_time):
         return {
-            "salon": self.salon.pk,
             "service": self.service.pk,
             "staff": self.staff.pk,
             "appointment_date": self.date.isoformat(),
@@ -55,6 +54,12 @@ class AppointmentFormTests(TestCase):
         form = AppointmentForm(data=self.form_data("18:00"))
         self.assertFalse(form.is_valid())
         self.assertIn("appointment_time", form.errors)
+
+    def test_sets_salon_from_the_selected_service(self):
+        form = AppointmentForm(data=self.form_data("11:00"))
+        self.assertTrue(form.is_valid(), form.errors)
+        appointment = form.save(commit=False)
+        self.assertEqual(appointment.salon, self.salon)
 
     def test_rejects_overlapping_staff_booking(self):
         Appointment.objects.create(

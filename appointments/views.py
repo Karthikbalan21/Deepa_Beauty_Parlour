@@ -31,7 +31,18 @@ def book_appointment(request):
             return redirect("upload_payment_proof", pk=appointment.pk)
     else:
         form = AppointmentForm()
-    return render(request, "appointments/book_appointment.html", {"form": form})
+    return render(request, "appointments/book_appointment.html", _booking_context(form))
+
+
+def _booking_context(form, **extra):
+    """Expose service/staff locations so the browser can guide a customer instantly."""
+    context = {
+        "form": form,
+        "service_salons": {str(service.id): service.salon_id for service in form.fields["service"].queryset},
+        "staff_salons": {str(staff.id): staff.salon_id for staff in form.fields["staff"].queryset},
+    }
+    context.update(extra)
+    return context
 
 
 @login_required
@@ -66,7 +77,7 @@ def reschedule_appointment(request, pk):
             return redirect("upload_payment_proof", pk=new.pk)
     else:
         form = AppointmentForm(instance=old)
-    return render(request, "appointments/book_appointment.html", {"form": form, "rescheduling": old})
+    return render(request, "appointments/book_appointment.html", _booking_context(form, rescheduling=old))
 
 
 @login_required

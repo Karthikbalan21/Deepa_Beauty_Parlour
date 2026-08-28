@@ -3,15 +3,21 @@ from datetime import datetime, timedelta
 
 from django.utils import timezone
 from .models import Appointment
+from salons.models import Staff
+from services.models import Service
 
 
 class AppointmentForm(forms.ModelForm):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["service"].queryset = Service.objects.filter(is_available=True).select_related("salon")
+        self.fields["staff"].queryset = Staff.objects.filter(is_available=True).select_related("salon")
 
     class Meta:
         model = Appointment
 
         fields = [
-            "salon",
             "service",
             "staff",
             "appointment_date",
@@ -21,26 +27,26 @@ class AppointmentForm(forms.ModelForm):
 
         widgets = {
 
-            "salon": forms.Select(attrs={
-                "class": "form-select"
-            }),
-
             "service": forms.Select(attrs={
-                "class": "form-select"
+                "class": "form-select",
+                "data-validate": "required",
             }),
 
             "staff": forms.Select(attrs={
-                "class": "form-select"
+                "class": "form-select",
+                "data-validate": "required",
             }),
 
             "appointment_date": forms.DateInput(attrs={
                 "class": "form-control",
-                "type": "date"
+                "type": "date",
+                "data-validate": "required",
             }),
 
             "appointment_time": forms.TimeInput(attrs={
                 "class": "form-control",
-                "type": "time"
+                "type": "time",
+                "data-validate": "required",
             }),
 
             "notes": forms.Textarea(attrs={
@@ -53,12 +59,11 @@ class AppointmentForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        salon, service, staff = (cleaned.get(key) for key in ("salon", "service", "staff"))
+        service, staff = (cleaned.get(key) for key in ("service", "staff"))
+        salon = service.salon if service else None
         appointment_date = cleaned.get("appointment_date")
-        if service and salon and service.salon_id != salon.id:
-            self.add_error("service", "Please select a service offered by this salon.")
         if staff and salon and staff.salon_id != salon.id:
-            self.add_error("staff", "Please select a staff member from this salon.")
+            self.add_error("staff", "Please select a staff member who provides services at this location.")
         if service and not service.is_available:
             self.add_error("service", "This service is currently unavailable.")
         if staff and not staff.is_available:
@@ -75,7 +80,7 @@ class AppointmentForm(forms.ModelForm):
             self.add_error("appointment_time", "Please choose a future time.")
         if salon and appointment_time:
             if not salon.is_active:
-                self.add_error("salon", "This salon is currently unavailable.")
+                self.add_error("service", "This service location is currently unavailable.")
             elif not (salon.opening_time <= appointment_time < salon.closing_time):
                 self.add_error(
                     "appointment_time",
@@ -103,6 +108,14 @@ class AppointmentForm(forms.ModelForm):
                     )
                     break
         return cleaned
+
+    def save(self, commit=True):
+        appointment = super().save(commit=False)
+        appointment.salon = appointment.service.salon
+        if commit:
+            appointment.save()
+            self.save_m2m()
+        return appointment
 
 
 class PaymentProofForm(forms.ModelForm):
