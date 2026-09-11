@@ -41,8 +41,8 @@
                 </div>
             </div>
             {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
-            <button type="submit" class="btn btn-primary" id="booking-submit"><i class="bi bi-check-circle"></i> {% if rescheduling %}Save new time{% else %}Reserve appointment{% endif %}</button>
-            <a href="{% url 'dashboard' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary" id="booking-submit"><i class="bi bi-credit-card"></i> {% if rescheduling %}Save new time{% else %}Proceed to Online Payment{% endif %}</button>
+            <a href="{% url 'my_appointments' %}" class="btn btn-secondary">Cancel</a>
         </form>
     </div>
 </div>
@@ -59,8 +59,7 @@
         [...staff.options].forEach(option => { if (!option.value) return; const visible = Boolean(salonId) && staffSalons[option.value] === salonId; option.hidden = !visible; option.disabled = !visible; if (option.selected && visible) selectedVisible = true; });
         if (!selectedVisible) staff.value = "";
         staff.disabled = !salonId;
-        document.getElementById("staff-help").textContent = salonId ? "Showing team members for your selected service." : "Select a service to see the matching team members.";
-        validate(staff);
+        document.getElementById("staff-help").textContent = salonId ? "Optional: Choose your preferred team member or leave as Auto-assign." : "Select a service to see the matching team members.";
     }
     [service, staff, date, document.getElementById("id_appointment_time")].forEach(input => { input.addEventListener("input", () => validate(input)); input.addEventListener("change", () => validate(input)); });
     service.addEventListener("change", filterStaff); filterStaff();

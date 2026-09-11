@@ -47,7 +47,12 @@ def _booking_context(form, **extra):
 
 @login_required
 def my_appointments(request):
-    appointments = Appointment.objects.filter(customer=request.user).select_related("salon", "staff", "service").order_by("-appointment_date", "-appointment_time")
+    appointments = (
+        Appointment.objects.filter(customer=request.user)
+        .select_related("salon", "staff", "service", "payment")
+        .prefetch_related("feedbacks")
+        .order_by("-appointment_date", "-appointment_time")
+    )
     return render(request, "appointments/my_appointments.html", {"appointments": appointments})
 
 
@@ -73,7 +78,7 @@ def reschedule_appointment(request, pk):
             new = form.save(commit=False); new.customer = request.user; new.rescheduled_from = old; new.save()
             Payment.objects.create(appointment=new, amount=new.service.price)
             old.status = Appointment.Status.CANCELLED; old.save()
-            messages.success(request, "Appointment rescheduled. Please upload payment proof for the new booking.")
+            messages.success(request, "Appointment rescheduled. Please complete payment for the new booking.")
             return redirect("upload_payment_proof", pk=new.pk)
     else:
         form = AppointmentForm(instance=old)
@@ -82,6 +87,7 @@ def reschedule_appointment(request, pk):
 
 @login_required
 def upload_payment_proof(request, pk):
+    import uuid
     appointment = get_object_or_404(Appointment, pk=pk, customer=request.user)
     payment, _ = Payment.objects.get_or_create(appointment=appointment, defaults={"amount": appointment.service.price})
     if payment.status == Payment.Status.VERIFIED:
@@ -91,13 +97,54 @@ def upload_payment_proof(request, pk):
         form = PaymentProofForm(request.POST, request.FILES, instance=payment)
         if form.is_valid():
             proof = form.save(commit=False)
+            method = form.cleaned_data.get("payment_method") or "ONLINE"
+            proof.payment_method = method
+            txn = form.cleaned_data.get("transaction_id")
+            if not txn:
+                proof.transaction_id = f"PAY-{uuid.uuid4().hex[:8].upper()}"
+            else:
+                proof.transaction_id = txn
             if proof.screenshot and proof.screenshot.size > 5 * 1024 * 1024:
                 form.add_error("screenshot", "Image must be smaller than 5 MB.")
             else:
-                proof.status = Payment.Status.PENDING; proof.save()
-                messages.success(request, "Payment proof submitted for verification.")
+                proof.status = Payment.Status.PENDING
+                proof.save()
+                messages.success(
+                    request,
+                    f"Payment details recorded successfully (Txn ID: {proof.transaction_id}). "
+                    f"Admin will verify details and assign your worker."
+                )
                 return redirect("my_appointments")
-    else: form = PaymentProofForm(instance=payment)
-    upi = appointment.salon.upi_id or "salon@upi"
+    else:
+        form = PaymentProofForm(instance=payment)
+    upi = appointment.salon.upi_id or "deepabeauty@upi"
     payload = quote(f"upi://pay?pa={upi}&pn={appointment.salon.name}&am={payment.amount}&cu=INR")
-    return render(request, "appointments/payment_proof.html", {"form": form, "appointment": appointment, "payment": payment, "qr_payload": payload})
+    return render(
+        request,
+        "appointments/payment_proof.html",
+        {"form": form, "appointment": appointment, "payment": payment, "qr_payload": payload}
+    )
+
+
+@login_required
+def submit_feedback(request, pk):
+    from reviews.models import Feedback
+    from .forms import FeedbackForm
+    appointment = get_object_or_404(Appointment, pk=pk, customer=request.user)
+    if appointment.status != Appointment.Status.COMPLETED:
+        messages.error(request, "Feedback can only be provided for completed appointments.")
+        return redirect("my_appointments")
+    existing = Feedback.objects.filter(appointment=appointment).first()
+    if request.method == "POST":
+        form = FeedbackForm(request.POST, instance=existing)
+        if form.is_valid():
+            fb = form.save(commit=False)
+            fb.customer = request.user
+            fb.appointment = appointment
+            fb.service = appointment.service
+            fb.save()
+            messages.success(request, "Thank you! Your feedback has been sent to the parlour admin.")
+            return redirect("my_appointments")
+    else:
+        form = FeedbackForm(instance=existing)
+    return render(request, "reviews/feedback_form.html", {"form": form, "appointment": appointment, "existing": existing})

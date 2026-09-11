@@ -13,6 +13,8 @@ class AppointmentForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["service"].queryset = Service.objects.filter(is_available=True).select_related("salon")
         self.fields["staff"].queryset = Staff.objects.filter(is_available=True).select_related("salon")
+        self.fields["staff"].required = False
+        self.fields["staff"].empty_label = "✨ Auto-assign by Parlour Admin (Recommended)"
 
     class Meta:
         model = Appointment
@@ -34,7 +36,6 @@ class AppointmentForm(forms.ModelForm):
 
             "staff": forms.Select(attrs={
                 "class": "form-select",
-                "data-validate": "required",
             }),
 
             "appointment_date": forms.DateInput(attrs={
@@ -52,7 +53,7 @@ class AppointmentForm(forms.ModelForm):
             "notes": forms.Textarea(attrs={
                 "class": "form-control",
                 "rows": 3,
-                "placeholder": "Any special request..."
+                "placeholder": "Any special request (e.g. skin type, preferred styling)..."
             }),
 
         }
@@ -119,7 +120,37 @@ class AppointmentForm(forms.ModelForm):
 
 
 class PaymentProofForm(forms.ModelForm):
+    payment_method = forms.ChoiceField(
+        choices=[
+            ("ONLINE", "Online Payment (Instant Simulation / Card / NetBanking / UPI)"),
+            ("UPI", "UPI QR Code Scan & Screenshot Upload"),
+        ],
+        widget=forms.RadioSelect(attrs={"class": "form-check-input"}),
+        initial="ONLINE"
+    )
+    transaction_id = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "Enter Reference / Transaction ID (e.g., TXN12345678)"}),
+        help_text="Provide payment reference ID or leave empty for auto-generation on online pay."
+    )
+
     class Meta:
         model = __import__("appointments.models", fromlist=["Payment"]).Payment
-        fields = ["screenshot"]
-        widgets = {"screenshot": forms.FileInput(attrs={"class": "form-control", "accept": "image/png,image/jpeg,image/webp"})}
+        fields = ["payment_method", "transaction_id", "screenshot"]
+        widgets = {
+            "screenshot": forms.FileInput(attrs={"class": "form-control", "accept": "image/png,image/jpeg,image/webp"}),
+        }
+
+
+class FeedbackForm(forms.ModelForm):
+    class Meta:
+        model = __import__("reviews.models", fromlist=["Feedback"]).Feedback
+        fields = ["rating", "comments"]
+        widgets = {
+            "rating": forms.Select(attrs={"class": "form-select"}),
+            "comments": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 4,
+                "placeholder": "How was your experience at Deepa Beauty Parlour? Share your review here..."
+            }),
+        }

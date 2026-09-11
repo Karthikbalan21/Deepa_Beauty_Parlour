@@ -1,65 +1,98 @@
-{% extends "owner/base.html" %}
+﻿{% extends "owner/base.html" %}
 
 {% block owner_content %}
-
-<div class="card shadow">
-
-    <div class="card-header bg-success text-white">
-
-        <div class="d-flex justify-content-between align-items-center"><h3 class="mb-0">Staff Management</h3><a href="{% url 'add_staff' %}" class="btn btn-light btn-sm"><i class="bi bi-person-plus"></i> Add staff</a></div>
-
-    </div>
-
-    <div class="card-body">
-
-        <table class="table table-hover">
-
-            <thead>
-
-                <tr>
-
-                    <th>Name</th>
-                    <th>Salon</th>
-                    <th>Specialization</th><th>Experience</th><th>Login</th><th>Availability</th>
-
-                </tr>
-
-            </thead>
-
-            <tbody>
-
-                {% for staff in staffs %}
-
-                <tr>
-
-                    <td>{{ staff.name }}</td>
-
-                    <td>{{ staff.salon.name }}</td>
-
-                    <td>{{ staff.specialization }}</td><td>{{ staff.experience }} years</td><td>{% if staff.user %}<span class="badge bg-info text-dark">{{ staff.user.username }}</span>{% else %}<span class="text-muted">Profile only</span>{% endif %}</td><td><form method="post" action="{% url 'toggle_staff' staff.id %}">{% csrf_token %}<button class="btn btn-sm {% if staff.is_available %}btn-outline-success{% else %}btn-outline-danger{% endif %}">{% if staff.is_available %}Available{% else %}Unavailable{% endif %}</button></form></td>
-
-                </tr>
-
-                {% empty %}
-
-                <tr>
-
-                    <td colspan="6">
-
-                        No Staff Found
-
-                    </td>
-
-                </tr>
-
-                {% endfor %}
-
-            </tbody>
-
-        </table>
-
-    </div>
-
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <div>
+    <h2 class="page-title mb-0">Worker / Staff Management</h2>
+    <p class="text-muted mb-0">Create worker accounts, manage credentials, edit details, or remove team members.</p>
+  </div>
+  <a href="{% url 'add_staff' %}" class="btn btn-primary">
+    <i class="bi bi-person-plus me-1"></i> Add New Worker
+  </a>
 </div>
 
+<div class="card shadow-sm">
+  <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+    <h5 class="mb-0"><i class="bi bi-people me-2"></i> Team Members List</h5>
+    <span class="badge bg-light text-dark">{{ staffs|length }} total</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Worker Name</th>
+          <th>Phone</th>
+          <th>Specialization</th>
+          <th>Experience</th>
+          <th>Login Account</th>
+          <th>Availability</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for staff in staffs %}
+        <tr>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              {% if staff.photo %}
+                <img src="{{ staff.photo.url }}" alt="{{ staff.name }}" class="rounded-circle border" style="width:40px;height:40px;object-fit:cover;">
+              {% else %}
+                <div class="icon-dot" style="width:40px;height:40px;font-size:1rem;flex-shrink:0;">
+                  <i class="bi bi-person"></i>
+                </div>
+              {% endif %}
+              <div>
+                <strong>{{ staff.name }}</strong>
+                <br><small class="text-muted">{{ staff.salon.name }}</small>
+              </div>
+            </div>
+          </td>
+          <td>{{ staff.phone|default:"—" }}</td>
+          <td><span class="badge bg-light text-dark border">{{ staff.specialization }}</span></td>
+          <td>{{ staff.experience }} yrs</td>
+          <td>
+            {% if staff.user %}
+              <span class="badge bg-info text-dark"><i class="bi bi-key-fill me-1"></i>{{ staff.user.username }}</span>
+            {% else %}
+              <span class="text-muted small">No account</span>
+            {% endif %}
+          </td>
+          <td>
+            <form method="post" action="{% url 'toggle_staff' staff.id %}" class="d-inline">
+              {% csrf_token %}
+              <button class="btn btn-sm {% if staff.is_available %}btn-outline-success{% else %}btn-outline-danger{% endif %}" title="Toggle availability">
+                {% if staff.is_available %}
+                  <i class="bi bi-check-circle"></i> Available
+                {% else %}
+                  <i class="bi bi-dash-circle"></i> Unavailable
+                {% endif %}
+              </button>
+            </form>
+          </td>
+          <td class="text-end">
+            <div class="d-flex justify-content-end gap-1">
+              <a href="{% url 'edit_staff' staff.id %}" class="btn btn-sm btn-outline-primary" title="Edit worker details">
+                <i class="bi bi-pencil-square"></i> Edit
+              </a>
+              <form method="post" action="{% url 'delete_staff' staff.id %}" class="d-inline" onsubmit="return confirm('Are you sure you want to permanently delete worker \'{{ staff.name }}\' and their login account?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete worker">
+                  <i class="bi bi-trash"></i> Delete
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center py-5 text-muted">
+            <i class="bi bi-person-x display-4 d-block mb-2 text-muted"></i>
+            No workers found. Click "Add New Worker" to add your team members.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}

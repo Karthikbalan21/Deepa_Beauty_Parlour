@@ -11,6 +11,12 @@ from appointments.models import Appointment, Payment, LoyaltyTransaction
 def landing(request):
     from salons.models import Salon, Staff
     from services.models import Service
+    from reviews.models import Feedback
+
+    positive_feedbacks = Feedback.objects.filter(
+        sentiment=Feedback.Sentiment.POSITIVE
+    ).select_related("customer", "service", "appointment__staff").order_by("-created_at")[:6]
+
     return render(request, "dashboard/home.html", {
         "salon_count": Salon.objects.filter(is_active=True).count(),
         "staff_count": Staff.objects.filter(is_available=True).count(),
@@ -18,6 +24,7 @@ def landing(request):
         "completed_count": Appointment.objects.filter(status=Appointment.Status.COMPLETED).count(),
         "featured_services": Service.objects.filter(is_available=True).select_related("salon")[:3],
         "popular_salons": Salon.objects.filter(is_active=True)[:3],
+        "positive_feedbacks": positive_feedbacks,
     })
 
 
@@ -62,8 +69,10 @@ def dashboard(request):
         recent = appointments.select_related("service", "salon", "staff").order_by("-appointment_date")[:5]
         context = {"upcoming": appointments.filter(appointment_date__gte=today, status__in=["PENDING", "CONFIRMED"]).count(), "completed": completed.count(), "cancelled": appointments.filter(status="CANCELLED").count(), "spent": Payment.objects.filter(appointment__customer=request.user, status=Payment.Status.VERIFIED).aggregate(v=Sum("amount"))["v"] or 0, "points": points, "redeemed": appointments.aggregate(v=Sum("loyalty_redeemed"))["v"] or 0, "recent": recent}
         return render(request, "dashboard/customer_dashboard.html", context)
-    if role == "OWNER": return redirect("owner_dashboard")
-    if role == "SERVICE_MANAGER": return redirect("owner_services")
+    if role in ["OWNER", "ADMIN"] or request.user.is_superuser:
+        return redirect("owner_dashboard")
+    if role == "SERVICE_MANAGER":
+        return redirect("owner_services")
     if role == "STAFF":
         # Use the linked staff profile. The name fallback keeps existing staff
         # records (for example, Sarah) working until they are explicitly linked.
@@ -95,33 +104,41 @@ def update_staff_appointment(request, pk, status):
     appointment = get_object_or_404(Appointment, pk=pk, staff=staff)
     allowed = {Appointment.Status.CONFIRMED, Appointment.Status.CANCELLED, Appointment.Status.COMPLETED}
     if request.method == "POST" and status in allowed:
-        if status in {Appointment.Status.CONFIRMED, Appointment.Status.COMPLETED} and (not hasattr(appointment, "payment") or appointment.payment.status != Payment.Status.VERIFIED):
-            messages.error(request, "This appointment is awaiting verified payment.")
-        else:
-            appointment.status = status
-            appointment.save(update_fields=["status", "updated_at"])
-            if status == Appointment.Status.COMPLETED:
-                if not LoyaltyTransaction.objects.filter(appointment=appointment).exists():
-                    visits = Appointment.objects.filter(
+        appointment.status = status
+        update_fields = ["status", "updated_at"]
+        if status == Appointment.Status.COMPLETED:
+            appointment.worker_completed = True
+            appointment.worker_completed_at = timezone.now()
+            notes = request.POST.get("worker_notes", "").strip()
+            appointment.worker_notes = notes or "Task completed successfully by worker."
+            update_fields.extend(["worker_completed", "worker_completed_at", "worker_notes"])
+            if not LoyaltyTransaction.objects.filter(appointment=appointment).exists():
+                visits = Appointment.objects.filter(
+                    customer=appointment.customer,
+                    status=Appointment.Status.COMPLETED,
+                ).count()
+                if visits > 3:
+                    LoyaltyTransaction.objects.create(
                         customer=appointment.customer,
-                        status=Appointment.Status.COMPLETED,
-                    ).count()
-                    if visits > 3:
-                        LoyaltyTransaction.objects.create(
-                            customer=appointment.customer,
-                            appointment=appointment,
-                            points=10,
-                            note="Loyalty reward for completed salon visit",
-                        )
-                from appointments.views import _refresh_trending
-                _refresh_trending()
+                        appointment=appointment,
+                        points=10,
+                        note="Loyalty reward for completed salon visit",
+                    )
+            from appointments.views import _refresh_trending
+            _refresh_trending()
+            messages.success(
+                request,
+                f"Service marked completed! Admin has been intimated that {appointment.customer.username}'s task is finished."
+            )
+        else:
             messages.success(request, f"Appointment marked {appointment.get_status_display()}.")
-            if request.headers.get("Accept") == "application/json":
-                return JsonResponse({
-                    "ok": True,
-                    "status": appointment.get_status_display(),
-                    "metrics": _staff_metrics(staff),
-                })
+        appointment.save(update_fields=update_fields)
+        if request.headers.get("Accept") == "application/json":
+            return JsonResponse({
+                "ok": True,
+                "status": appointment.get_status_display(),
+                "metrics": _staff_metrics(staff),
+            })
     if request.headers.get("Accept") == "application/json":
         return JsonResponse({"ok": False, "message": "The appointment could not be updated."}, status=400)
     return redirect("dashboard")

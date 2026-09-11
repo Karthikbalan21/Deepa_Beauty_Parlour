@@ -56,3 +56,40 @@ class StaffForm(forms.ModelForm):
         if commit:
             staff.save()
         return staff
+
+
+class StaffEditForm(forms.ModelForm):
+    """Form to edit an existing staff profile and optionally update password."""
+    new_password = forms.CharField(
+        required=False,
+        widget=forms.PasswordInput(attrs={"class": "form-control"}),
+        help_text="Leave blank to keep current worker password.",
+        label="Reset Password (Optional)"
+    )
+
+    class Meta:
+        model = Staff
+        fields = ["name", "phone", "specialization", "experience", "photo", "is_available"]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control"}),
+            "phone": forms.TextInput(attrs={"class": "form-control"}),
+            "specialization": forms.TextInput(attrs={"class": "form-control"}),
+            "experience": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+            "photo": forms.FileInput(attrs={"class": "form-control", "accept": "image/*"}),
+            "is_available": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+    def save(self, commit=True):
+        staff = super().save(commit=commit)
+        new_password = self.cleaned_data.get("new_password")
+        if new_password and staff.user:
+            staff.user.set_password(new_password)
+            staff.user.phone = staff.phone
+            staff.user.first_name = staff.name
+            staff.user.save()
+        elif staff.user:
+            staff.user.phone = staff.phone
+            staff.user.first_name = staff.name
+            staff.user.save(update_fields=["phone", "first_name"])
+        return staff
+

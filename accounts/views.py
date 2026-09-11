@@ -15,7 +15,7 @@ class UserLoginView(LoginView):
     def get_success_url(self):
         role = self.request.user.role
 
-        if role == "OWNER":
+        if role in ["OWNER", "ADMIN"] or self.request.user.is_superuser:
             return "/owner/"
 
         elif role == "STAFF":

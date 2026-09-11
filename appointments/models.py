@@ -25,7 +25,10 @@ class Appointment(models.Model):
     )
     staff = models.ForeignKey(
         Staff,
-        on_delete=models.CASCADE
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="appointments"
     )
     service = models.ForeignKey(
         Service,
@@ -41,6 +44,9 @@ class Appointment(models.Model):
         choices=Status.choices,
         default=Status.PENDING
     )
+    worker_completed = models.BooleanField(default=False)
+    worker_completed_at = models.DateTimeField(null=True, blank=True)
+    worker_notes = models.TextField(blank=True)
     loyalty_redeemed = models.PositiveIntegerField(default=0)
     rescheduled_from = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="reschedules")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -58,12 +64,20 @@ class Payment(models.Model):
         VERIFIED = "VERIFIED", "Verified"
         REJECTED = "REJECTED", "Rejected"
 
+    class Method(models.TextChoices):
+        UPI = "UPI", "UPI / QR Code"
+        ONLINE = "ONLINE", "Online Payment (Card / NetBanking / UPI)"
+        CASH = "CASH", "Pay at Parlour"
+
     appointment = models.OneToOneField(Appointment, on_delete=models.CASCADE, related_name="payment")
     amount = models.DecimalField(max_digits=9, decimal_places=2)
+    payment_method = models.CharField(max_length=20, choices=Method.choices, default=Method.UPI)
+    transaction_id = models.CharField(max_length=100, blank=True)
     razorpay_payment_id = models.CharField(max_length=100, blank=True)
     screenshot = models.ImageField(upload_to="payment_proofs/", blank=True, null=True)
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
 
 
 class LoyaltyTransaction(models.Model):

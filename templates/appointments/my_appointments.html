@@ -1,17 +1,113 @@
 {% extends "dashboard/dashboard_base.html" %}
 {% block dashboard_content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <div><h2 class="page-title mb-0">My appointments</h2><p class="text-muted mb-0">Bookings, receipts, and payments.</p></div>
-  <a class="btn btn-primary" href="{% url 'book_appointment' %}">New booking</a>
+  <div>
+    <h2 class="page-title mb-0">My Appointments</h2>
+    <p class="text-muted mb-0">View your appointments, online payment status, worker assignment, update or cancel.</p>
+  </div>
+  <a class="btn btn-primary" href="{% url 'book_appointment' %}"><i class="bi bi-calendar-plus"></i> Book New Service</a>
 </div>
-<div class="card"><div class="table-responsive"><table class="table align-middle mb-0">
-  <thead><tr><th>Visit</th><th>When</th><th>Status</th><th>Payment</th><th></th></tr></thead>
-  <tbody>{% for a in appointments %}<tr>
-    <td><strong>{{ a.service.name }}</strong><br><small class="text-muted">{{ a.salon.name }} · {{ a.staff.name }}</small></td>
-    <td>{{ a.appointment_date }}<br><small>{{ a.appointment_time|time:"g:i A" }}</small></td>
-    <td><span class="badge {% if a.status == 'COMPLETED' %}bg-success{% elif a.status == 'CANCELLED' %}bg-danger{% elif a.status == 'PENDING' %}bg-warning text-dark{% else %}bg-primary{% endif %}">{{ a.get_status_display }}</span></td>
-    <td>{% if a.payment %}<a href="{% url 'upload_payment_proof' a.id %}" class="small">{{ a.payment.get_status_display }}</a>{% else %}—{% endif %}</td>
-    <td class="text-end">{% if a.status == 'PENDING' or a.status == 'CONFIRMED' %}<a class="btn btn-sm btn-outline-primary" href="{% url 'reschedule_appointment' a.id %}">Reschedule</a><form class="d-inline" method="post" action="{% url 'cancel_appointment' a.id %}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Cancel</button></form>{% endif %}</td>
-  </tr>{% empty %}<tr><td colspan="5" class="text-center text-muted py-5">No appointments yet.</td></tr>{% endfor %}</tbody>
-</table></div></div>
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Service / Activity</th>
+          <th>Date & Time</th>
+          <th>Assigned Worker</th>
+          <th>Online Payment</th>
+          <th>Status</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in appointments %}
+        <tr>
+          <td>
+            <strong>{{ a.service.name }}</strong>
+            <br>
+            <small class="text-muted"><i class="bi bi-clock"></i> {{ a.service.duration }} mins · ₹{{ a.service.price }}</small>
+          </td>
+          <td>
+            <strong>{{ a.appointment_date }}</strong>
+            <br>
+            <small class="text-muted"><i class="bi bi-alarm"></i> {{ a.appointment_time|time:"g:i A" }}</small>
+          </td>
+          <td>
+            {% if a.staff %}
+              <span class="badge bg-info text-dark"><i class="bi bi-person-badge"></i> {{ a.staff.name }}</span>
+              <br><small class="text-muted">{{ a.staff.specialization }}</small>
+            {% else %}
+              <span class="badge bg-secondary"><i class="bi bi-hourglass-split"></i> Pending Admin Assignment</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if a.payment %}
+              {% if a.payment.status == 'VERIFIED' %}
+                <span class="badge bg-success"><i class="bi bi-check-circle"></i> Verified</span>
+              {% elif a.payment.status == 'REJECTED' %}
+                <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Rejected</span>
+              {% else %}
+                <span class="badge bg-warning text-dark"><i class="bi bi-clock-history"></i> Verification Pending</span>
+              {% endif %}
+              <br>
+              <small class="text-muted">
+                {{ a.payment.get_payment_method_display|default:"Online" }}
+                {% if a.payment.transaction_id %}<br>Txn: {{ a.payment.transaction_id }}{% endif %}
+              </small>
+              {% if a.payment.status == 'PENDING' %}
+                <br><a href="{% url 'upload_payment_proof' a.id %}" class="small text-primary"><i class="bi bi-pencil-square"></i> Update Payment</a>
+              {% endif %}
+            {% else %}
+              <a href="{% url 'upload_payment_proof' a.id %}" class="btn btn-sm btn-outline-warning">Pay Online</a>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge {% if a.status == 'COMPLETED' %}bg-success{% elif a.status == 'CANCELLED' %}bg-danger{% elif a.status == 'CONFIRMED' %}bg-primary{% else %}bg-warning text-dark{% endif %}">
+              {{ a.get_status_display }}
+            </span>
+            {% if a.worker_completed %}
+              <br><small class="text-success"><i class="bi bi-check2-all"></i> Worker intimates completed</small>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <div class="d-flex justify-content-end gap-1 flex-wrap">
+              {% if a.status == 'PENDING' or a.status == 'CONFIRMED' %}
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'reschedule_appointment' a.id %}" title="Change date/time">
+                  <i class="bi bi-pencil"></i> Update
+                </a>
+                <form class="d-inline" method="post" action="{% url 'cancel_appointment' a.id %}" onsubmit="return confirm('Are you sure you want to cancel this appointment?')">
+                  {% csrf_token %}
+                  <button class="btn btn-sm btn-outline-danger" title="Cancel booking">
+                    <i class="bi bi-trash"></i> Cancel
+                  </button>
+                </form>
+              {% elif a.status == 'COMPLETED' %}
+                {% if a.feedbacks.first %}
+                  <a href="{% url 'submit_feedback' a.id %}" class="btn btn-sm btn-outline-success">
+                    <i class="bi bi-star-fill text-warning"></i> Feedback: {{ a.feedbacks.first.rating }}★
+                  </a>
+                {% else %}
+                  <a href="{% url 'submit_feedback' a.id %}" class="btn btn-sm btn-warning text-dark">
+                    <i class="bi bi-star"></i> Give Feedback
+                  </a>
+                {% endif %}
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center text-muted py-5">
+            <i class="bi bi-calendar-x display-4 d-block mb-2 text-muted"></i>
+            You have no appointments yet.<br>
+            <a href="{% url 'book_appointment' %}" class="btn btn-primary btn-sm mt-3">Book Your First Parlour Service</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}

@@ -1,6 +1,329 @@
 {% extends "owner/base.html" %}
+
 {% block owner_content %}
-<div class="d-flex justify-content-between mb-3"><div><h2 class="page-title mb-0">Appointment operations</h2><small class="text-muted">Verify payments and manage appointments.</small></div></div>
-<form class="card card-body mb-3" method="get"><div class="row g-2"><div class="col-md-3"><input type="date" name="date" value="{{ request.GET.date }}" class="form-control"></div><div class="col-md-3"><select name="status" class="form-select"><option value="">All statuses</option><option value="PENDING">Pending</option><option value="CONFIRMED">Confirmed</option><option value="COMPLETED">Completed</option><option value="CANCELLED">Cancelled</option></select></div><div class="col-md-3"><select name="staff" class="form-select"><option value="">All staff</option>{% for s in staffs %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></div><div class="col-md-3"><button class="btn btn-primary w-100">Apply filters</button></div></div></form>
-<div class="card"><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Customer</th><th>Booking</th><th>Slot</th><th>Payment</th><th>Status</th><th>Actions</th></tr></thead><tbody>{% for a in appointments %}<tr><td><strong>{{ a.customer.username }}</strong><br><small>{{ a.salon.name }}</small></td><td>{{ a.service.name }}<br><small>{{ a.staff.name }}</small></td><td>{{ a.appointment_date }}<br>{{ a.appointment_time|time:"g:i A" }}</td><td>{% if a.payment %}<span class="badge {% if a.payment.status == 'VERIFIED' %}bg-success{% elif a.payment.status == 'REJECTED' %}bg-danger{% else %}bg-warning text-dark{% endif %}">{{ a.payment.get_status_display }}</span>{% if a.payment.screenshot %}<a class="d-block small mt-1" target="_blank" href="{{ a.payment.screenshot.url }}">View proof</a>{% if a.payment.status == 'PENDING' %}<form method="post" class="d-inline" action="{% url 'verify_payment' a.payment.id 'VERIFIED' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-success mt-1">Verify</button></form><form method="post" class="d-inline" action="{% url 'verify_payment' a.payment.id 'REJECTED' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger mt-1">Reject</button></form>{% endif %}{% endif %}{% else %}—{% endif %}</td><td><span class="badge bg-primary">{{ a.get_status_display }}</span></td><td>{% if a.status != 'COMPLETED' %}<form class="d-inline" method="post" action="{% url 'update_appointment' a.id 'COMPLETED' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-success">Complete</button></form><form class="d-inline" method="post" action="{% url 'update_appointment' a.id 'CANCELLED' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Cancel</button></form>{% endif %}</td></tr>{% empty %}<tr><td colspan="6" class="text-center py-5 text-muted">No appointments match these filters.</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <div>
+    <h2 class="page-title mb-0">Appointments & Operations</h2>
+    <p class="text-muted mb-0">Verify customer payments, assign parlour workers, and monitor service completion in real time.</p>
+  </div>
+</div>
+
+<!-- Operational Metric Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="card metric h-100">
+      <small class="text-muted"><i class="bi bi-calendar-range me-1"></i> Total Bookings</small>
+      <h2 class="mb-0">{{ total_count }}</h2>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card metric h-100">
+      <small class="text-muted"><i class="bi bi-person-exclamation me-1"></i> Needs Worker</small>
+      <h2 class="mb-0 text-warning">{{ unassigned_count }}</h2>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card metric h-100">
+      <small class="text-muted"><i class="bi bi-credit-card me-1"></i> Payments Pending</small>
+      <h2 class="mb-0 text-info">{{ pending_pay_count }}</h2>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card metric h-100">
+      <small class="text-muted"><i class="bi bi-check2-all me-1"></i> Completed</small>
+      <h2 class="mb-0 text-success">{{ completed_count }}</h2>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Status Tabs -->
+<div class="d-flex gap-2 mb-3 overflow-x-auto pb-1 flex-nowrap">
+  <a href="{% url 'owner_appointments' %}" class="btn btn-sm {% if not request.GET.status %}btn-primary{% else %}btn-outline-secondary{% endif %} text-nowrap">
+    All Bookings
+  </a>
+  <a href="{% url 'owner_appointments' %}?status=PENDING" class="btn btn-sm {% if request.GET.status == 'PENDING' %}btn-primary{% else %}btn-outline-secondary{% endif %} text-nowrap">
+    <i class="bi bi-clock-history me-1"></i> Pending
+  </a>
+  <a href="{% url 'owner_appointments' %}?status=CONFIRMED" class="btn btn-sm {% if request.GET.status == 'CONFIRMED' %}btn-primary{% else %}btn-outline-secondary{% endif %} text-nowrap">
+    <i class="bi bi-calendar-check me-1"></i> Confirmed
+  </a>
+  <a href="{% url 'owner_appointments' %}?status=COMPLETED" class="btn btn-sm {% if request.GET.status == 'COMPLETED' %}btn-primary{% else %}btn-outline-secondary{% endif %} text-nowrap">
+    <i class="bi bi-check-circle me-1"></i> Completed
+  </a>
+  <a href="{% url 'owner_appointments' %}?status=CANCELLED" class="btn btn-sm {% if request.GET.status == 'CANCELLED' %}btn-primary{% else %}btn-outline-secondary{% endif %} text-nowrap">
+    <i class="bi bi-x-circle me-1"></i> Cancelled
+  </a>
+</div>
+
+<!-- Filters & Search Form -->
+<form class="card card-body mb-4 shadow-sm" method="get">
+  {% if request.GET.status %}
+    <input type="hidden" name="status" value="{{ request.GET.status }}">
+  {% endif %}
+  <div class="row g-2 align-items-end">
+    <div class="col-12 col-md-4">
+      <label class="form-label small text-muted mb-1"><i class="bi bi-search me-1"></i> Search</label>
+      <input type="text" name="q" value="{{ request.GET.q|default:'' }}" class="form-control form-control-sm" placeholder="Search customer, phone, txn ID...">
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label small text-muted mb-1"><i class="bi bi-calendar3 me-1"></i> Date</label>
+      <input type="date" name="date" value="{{ request.GET.date }}" class="form-control form-control-sm">
+    </div>
+    <div class="col-6 col-md-3">
+      <label class="form-label small text-muted mb-1"><i class="bi bi-person-badge me-1"></i> Worker</label>
+      <select name="staff" class="form-select form-select-sm">
+        <option value="">All Workers</option>
+        {% for s in staffs %}
+          <option value="{{ s.id }}" {% if request.GET.staff == s.id|stringformat:"i" %}selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-md-3 d-flex gap-2">
+      <button type="submit" class="btn btn-primary btn-sm flex-grow-1 text-nowrap">
+        <i class="bi bi-funnel"></i> Filter
+      </button>
+      {% if request.GET.q or request.GET.date or request.GET.staff or request.GET.status or request.GET.payment %}
+        <a href="{% url 'owner_appointments' %}" class="btn btn-outline-secondary btn-sm text-nowrap">
+          <i class="bi bi-arrow-counterclockwise"></i> Reset
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</form>
+
+<!-- Appointments Table Card -->
+<div class="card shadow-sm border-0">
+  <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3">
+    <h5 class="mb-0 fs-6"><i class="bi bi-calendar2-week me-2"></i> Booking Schedule & Operations</h5>
+    <span class="badge bg-light text-dark fw-semibold">{{ appointments|length }} Bookings Shown</span>
+  </div>
+
+  <div class="table-responsive" style="border-radius: 0 0 22px 22px;">
+    <table class="table align-middle mb-0" style="min-width: 1060px;">
+      <thead>
+        <tr class="text-muted small text-uppercase" style="background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid var(--line);">
+          <th style="width: 18%; min-width: 180px;" class="ps-3 py-3">Customer</th>
+          <th style="width: 18%; min-width: 180px;" class="py-3">Service & Schedule</th>
+          <th style="width: 22%; min-width: 220px;" class="py-3">Online Payment</th>
+          <th style="width: 23%; min-width: 230px;" class="py-3">Assigned Worker</th>
+          <th style="width: 11%; min-width: 140px;" class="py-3">Status</th>
+          <th style="width: 8%; min-width: 110px;" class="text-end pe-3 py-3">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in appointments %}
+        <tr style="border-bottom: 1px solid var(--line);">
+          <!-- Customer Column -->
+          <td class="ps-3 py-3">
+            <div class="d-flex align-items-center gap-2">
+              <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm" 
+                   style="width: 36px; height: 36px; min-width: 36px; background: linear-gradient(135deg, #ab75ff, #ff86ae); font-size: 0.85rem;">
+                {{ a.customer.first_name|first|default:a.customer.username|first|upper }}
+              </div>
+              <div class="overflow-hidden">
+                <strong class="d-block text-truncate" style="max-width: 140px;">
+                  {{ a.customer.get_full_name|default:a.customer.username }}
+                </strong>
+                <small class="text-muted d-block text-nowrap">
+                  <i class="bi bi-telephone me-1"></i>{{ a.customer.phone|default:"No phone" }}
+                </small>
+              </div>
+            </div>
+            {% if a.notes %}
+              <div class="mt-2 p-1 px-2 rounded bg-warning bg-opacity-10 border border-warning border-opacity-25" style="font-size: 0.76rem;">
+                <span class="text-warning fw-semibold"><i class="bi bi-chat-left-text me-1"></i>Note:</span> {{ a.notes }}
+              </div>
+            {% endif %}
+          </td>
+
+          <!-- Service & Schedule Column -->
+          <td class="py-3">
+            <div class="fw-bold text-truncate" style="max-width: 170px;">{{ a.service.name }}</div>
+            <div class="mt-1 d-flex flex-wrap gap-1 align-items-center">
+              <span class="badge bg-light text-dark fw-bold" style="font-size: 0.78rem;">
+                ₹{{ a.service.price }}
+              </span>
+              <span class="text-muted small text-nowrap">
+                <i class="bi bi-clock me-1"></i>{{ a.service.duration }} mins
+              </span>
+            </div>
+            <div class="text-muted small text-nowrap mt-1">
+              <i class="bi bi-calendar-event me-1 text-primary"></i><strong>{{ a.appointment_date|date:"M d, Y" }}</strong>
+              <span class="mx-1">·</span>{{ a.appointment_time|time:"g:i A" }}
+            </div>
+          </td>
+
+          <!-- Online Payment Column -->
+          <td class="py-3">
+            {% if a.payment %}
+              <!-- Status Badge -->
+              {% if a.payment.status == 'VERIFIED' %}
+                <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-25 text-nowrap" style="font-size: 0.78rem;">
+                  <i class="bi bi-check-circle-fill me-1"></i> Verified
+                </span>
+              {% elif a.payment.status == 'REJECTED' %}
+                <span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-25 text-nowrap" style="font-size: 0.78rem;">
+                  <i class="bi bi-x-circle-fill me-1"></i> Rejected
+                </span>
+              {% else %}
+                <span class="badge bg-warning bg-opacity-25 text-warning border border-warning border-opacity-25 text-nowrap" style="font-size: 0.78rem;">
+                  <i class="bi bi-hourglass-split me-1"></i> Pending Verification
+                </span>
+              {% endif %}
+
+              <!-- Payment Details -->
+              <div class="mt-1 small">
+                <span class="text-muted">{{ a.payment.get_payment_method_display|default:"Online UPI" }}</span>
+                {% if a.payment.transaction_id %}
+                  <span class="mx-1 text-muted">|</span>
+                  <code class="text-info small text-break">{{ a.payment.transaction_id }}</code>
+                {% endif %}
+              </div>
+
+              <!-- View Screenshot Slip -->
+              {% if a.payment.screenshot %}
+                <div class="mt-1">
+                  <a class="btn btn-outline-info btn-sm py-0 px-2 text-nowrap" target="_blank" href="{{ a.payment.screenshot.url }}" style="font-size: 0.75rem; border-radius: 8px;">
+                    <i class="bi bi-image me-1"></i> View Slip
+                  </a>
+                </div>
+              {% endif %}
+
+              <!-- Verification Action Buttons -->
+              {% if a.payment.status == 'PENDING' %}
+                <div class="d-flex gap-1 mt-2">
+                  <form method="post" action="{% url 'verify_payment' a.payment.id 'VERIFIED' %}">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-success py-1 px-2 text-nowrap" style="font-size: 0.78rem; white-space: nowrap !important;" title="Approve and confirm booking">
+                      <i class="bi bi-check-lg"></i> Verify
+                    </button>
+                  </form>
+                  <form method="post" action="{% url 'verify_payment' a.payment.id 'REJECTED' %}">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-outline-danger py-1 px-2 text-nowrap" style="font-size: 0.78rem; white-space: nowrap !important;" title="Reject payment">
+                      <i class="bi bi-x-lg"></i> Reject
+                    </button>
+                  </form>
+                </div>
+              {% endif %}
+            {% else %}
+              <span class="badge bg-secondary bg-opacity-25 text-muted border border-secondary border-opacity-25">
+                No Payment Record
+              </span>
+            {% endif %}
+          </td>
+
+          <!-- Assigned Worker Column -->
+          <td class="py-3">
+            {% if a.staff %}
+              <div class="d-flex align-items-center gap-1 mb-1">
+                <span class="badge bg-info bg-opacity-25 text-info border border-info border-opacity-25 text-nowrap fw-semibold" style="font-size: 0.82rem;">
+                  <i class="bi bi-person-fill-check me-1"></i> {{ a.staff.name }}
+                </span>
+              </div>
+            {% else %}
+              <div class="mb-1">
+                <span class="badge bg-warning bg-opacity-25 text-warning border border-warning border-opacity-25 text-nowrap fw-semibold" style="font-size: 0.8rem;">
+                  <i class="bi bi-person-exclamation me-1"></i> Not Assigned
+                </span>
+              </div>
+            {% endif %}
+
+            <!-- Unified Worker Assignment Input-Group -->
+            {% if a.status != 'CANCELLED' and a.status != 'COMPLETED' %}
+              <form method="post" action="{% url 'assign_worker' a.id %}" class="mt-2">
+                {% csrf_token %}
+                <div class="input-group input-group-sm" style="min-width: 210px; max-width: 240px;">
+                  <select name="staff_id" class="form-select form-select-sm" style="font-size: 0.8rem; border-radius: 10px 0 0 10px;">
+                    <option value="">-- Choose Worker --</option>
+                    {% for s in staffs %}
+                      <option value="{{ s.id }}" {% if a.staff_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="btn btn-primary btn-sm px-2 text-nowrap" style="white-space: nowrap !important; font-size: 0.8rem; border-radius: 0 10px 10px 0;" title="Assign selected worker">
+                    <i class="bi bi-person-check"></i> Assign
+                  </button>
+                </div>
+              </form>
+            {% endif %}
+          </td>
+
+          <!-- Status & Worker Progress Column -->
+          <td class="py-3">
+            <!-- Booking Status Badge -->
+            {% if a.status == 'COMPLETED' %}
+              <span class="badge bg-success text-white text-nowrap">
+                <i class="bi bi-check-circle-fill me-1"></i> Completed
+              </span>
+            {% elif a.status == 'CANCELLED' %}
+              <span class="badge bg-danger text-white text-nowrap">
+                <i class="bi bi-x-circle-fill me-1"></i> Cancelled
+              </span>
+            {% elif a.status == 'CONFIRMED' %}
+              <span class="badge bg-primary text-white text-nowrap">
+                <i class="bi bi-calendar-check me-1"></i> Confirmed
+              </span>
+            {% else %}
+              <span class="badge bg-warning text-dark text-nowrap">
+                <i class="bi bi-hourglass-split me-1"></i> Pending
+              </span>
+            {% endif %}
+
+            <!-- Worker Intimated Notice -->
+            {% if a.worker_completed %}
+              <div class="mt-2 p-2 rounded border border-success" style="background: rgba(40, 167, 69, 0.12); font-size: 0.74rem;">
+                <div class="text-success fw-bold text-nowrap">
+                  <i class="bi bi-check-all me-1"></i> Task Intimated!
+                </div>
+                {% if a.worker_completed_at %}
+                  <div class="text-muted mt-0.5" style="font-size: 0.7rem;">
+                    {{ a.worker_completed_at|date:"M d, g:i A" }}
+                  </div>
+                {% endif %}
+                {% if a.worker_notes %}
+                  <div class="text-light text-opacity-75 mt-1 fst-italic text-truncate" style="max-width: 130px;" title="{{ a.worker_notes }}">
+                    "{{ a.worker_notes }}"
+                  </div>
+                {% endif %}
+              </div>
+            {% endif %}
+          </td>
+
+          <!-- Actions Column -->
+          <td class="text-end pe-3 py-3">
+            <div class="d-flex flex-column gap-1" style="min-width: 95px;">
+              {% if a.status != 'COMPLETED' and a.status != 'CANCELLED' %}
+                <form method="post" action="{% url 'update_appointment' a.id 'COMPLETED' %}">
+                  {% csrf_token %}
+                  <button class="btn btn-sm btn-success w-100 py-1 text-nowrap" style="font-size: 0.78rem; white-space: nowrap !important;" title="Mark appointment complete">
+                    <i class="bi bi-check2-circle me-1"></i> Complete
+                  </button>
+                </form>
+                <form method="post" action="{% url 'update_appointment' a.id 'CANCELLED' %}" onsubmit="return confirm('Cancel this appointment booking?')">
+                  {% csrf_token %}
+                  <button class="btn btn-sm btn-outline-danger w-100 py-1 text-nowrap" style="font-size: 0.78rem; white-space: nowrap !important;" title="Cancel appointment">
+                    <i class="bi bi-x-circle me-1"></i> Cancel
+                  </button>
+                </form>
+              {% else %}
+                <span class="text-muted small text-nowrap">Finished</span>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center py-5 text-muted">
+            <i class="bi bi-calendar-x display-4 d-block mb-3 text-muted opacity-50"></i>
+            <h6 class="text-muted">No appointments found matching these filters.</h6>
+            <a href="{% url 'owner_appointments' %}" class="btn btn-sm btn-outline-secondary mt-2">
+              <i class="bi bi-arrow-counterclockwise me-1"></i> Clear all filters
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}

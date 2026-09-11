@@ -1,0 +1,38 @@
+﻿{% extends "owner/base.html" %}
+
+{% block owner_content %}
+<div class="card shadow">
+  <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+    <h3 class="mb-0"><i class="bi bi-pencil-square me-2"></i> Edit Worker: {{ staff.name }}</h3>
+    {% if staff.user %}
+      <span class="badge bg-light text-dark">Login: {{ staff.user.username }}</span>
+    {% endif %}
+  </div>
+  <div class="card-body p-4">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {% for field in form %}
+        <div class="mb-3">
+          {% if field.field.widget.input_type == 'checkbox' %}
+            <div class="form-check">
+              {{ field }}
+              <label class="form-check-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            </div>
+          {% else %}
+            <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+          {% endif %}
+          {% if field.help_text %}
+            <div class="form-text">{{ field.help_text }}</div>
+          {% endif %}
+          {{ field.errors }}
+        </div>
+      {% endfor %}
+      <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-1"></i> Save Changes</button>
+        <a href="{% url 'owner_staff' %}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -37,8 +37,18 @@
           <form class="ajax-status" method="post" action="{% url 'verify_staff_payment' a.payment.id 'VERIFIED' %}">{% csrf_token %}<button class="btn btn-outline-primary">Verify & confirm</button></form>
           <form class="ajax-status" method="post" action="{% url 'verify_staff_payment' a.payment.id 'REJECTED' %}">{% csrf_token %}<button class="btn btn-outline-danger">Reject</button></form>
         {% elif a.status == 'CONFIRMED' %}
-          <form class="ajax-status" method="post" action="{% url 'update_staff_appointment' a.id 'COMPLETED' %}">{% csrf_token %}<button class="btn btn-outline-success">Complete</button></form>
-          <form class="ajax-status" method="post" action="{% url 'update_staff_appointment' a.id 'CANCELLED' %}">{% csrf_token %}<button class="btn btn-outline-danger">Cancel</button></form>
+          <form class="ajax-status d-flex flex-column gap-1 align-items-end" method="post" action="{% url 'update_staff_appointment' a.id 'COMPLETED' %}">
+            {% csrf_token %}
+            <input type="text" name="worker_notes" class="form-control form-control-sm" placeholder="Notes (e.g., hair styled)" style="font-size:0.75rem;max-width:150px">
+            <button class="btn btn-success btn-sm"><i class="bi bi-check2-circle"></i> Complete & Intimate Admin</button>
+          </form>
+          <form class="ajax-status mt-1" method="post" action="{% url 'update_staff_appointment' a.id 'CANCELLED' %}">
+            {% csrf_token %}
+            <button class="btn btn-outline-danger btn-sm py-0">Cancel</button>
+          </form>
+        {% elif a.worker_completed %}
+          <span class="badge bg-success"><i class="bi bi-check2-all"></i> Intimated to Admin</span>
+          {% if a.worker_notes %}<div class="small text-muted text-end">"{{ a.worker_notes }}"</div>{% endif %}
         {% endif %}
       </div></td>
     </tr>{% empty %}<tr><td colspan="6" class="text-center text-muted py-5">No assigned appointments in the last 30 days.</td></tr>{% endfor %}</tbody>

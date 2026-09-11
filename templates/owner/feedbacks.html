@@ -1,0 +1,201 @@
+{% extends "owner/base.html" %}
+
+{% block owner_content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h2 class="page-title mb-0">Customer Feedbacks & Sentiment Analysis</h2>
+        <p class="text-muted mb-0">Monitor customer reviews classified by AI into Positive, Neutral, and Negative sentiments.</p>
+    </div>
+</div>
+
+<!-- Sentiment & Performance Metric Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="card metric h-100">
+            <small class="text-muted"><i class="bi bi-chat-quote me-1"></i> Total Reviews</small>
+            <h2 class="mb-0">{{ total_feedbacks }}</h2>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card metric h-100">
+            <small class="text-muted"><i class="bi bi-emoji-smile-fill text-success me-1"></i> Positive</small>
+            <h2 class="mb-0 text-success">{{ positive_count }}</h2>
+            <small class="text-success" style="font-size: 0.72rem;"><i class="bi bi-globe me-1"></i>Shown on Home Page</small>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card metric h-100">
+            <small class="text-muted"><i class="bi bi-emoji-neutral-fill text-info me-1"></i> Neutral</small>
+            <h2 class="mb-0 text-info">{{ neutral_count }}</h2>
+            <small class="text-muted" style="font-size: 0.72rem;">Moderate / Average</small>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card metric h-100">
+            <small class="text-muted"><i class="bi bi-emoji-frown-fill text-danger me-1"></i> Negative</small>
+            <h2 class="mb-0 text-danger">{{ negative_count }}</h2>
+            <small class="text-muted" style="font-size: 0.72rem;">Requires Attention</small>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Sentiment Filter Tabs -->
+<div class="d-flex gap-2 mb-3 overflow-x-auto pb-1 flex-nowrap">
+    <a href="{% url 'owner_feedbacks' %}" class="btn btn-sm {% if not request.GET.sentiment %}btn-primary{% else %}btn-outline-secondary{% endif %} text-nowrap">
+        All Reviews ({{ total_feedbacks }})
+    </a>
+    <a href="{% url 'owner_feedbacks' %}?sentiment=POSITIVE" class="btn btn-sm {% if request.GET.sentiment == 'POSITIVE' %}btn-primary{% else %}btn-outline-secondary{% endif %} text-nowrap">
+        <i class="bi bi-emoji-smile-fill text-success me-1"></i> Positive ({{ positive_count }})
+    </a>
+    <a href="{% url 'owner_feedbacks' %}?sentiment=NEUTRAL" class="btn btn-sm {% if request.GET.sentiment == 'NEUTRAL' %}btn-primary{% else %}btn-outline-secondary{% endif %} text-nowrap">
+        <i class="bi bi-emoji-neutral-fill text-info me-1"></i> Neutral ({{ neutral_count }})
+    </a>
+    <a href="{% url 'owner_feedbacks' %}?sentiment=NEGATIVE" class="btn btn-sm {% if request.GET.sentiment == 'NEGATIVE' %}btn-primary{% else %}btn-outline-secondary{% endif %} text-nowrap">
+        <i class="bi bi-emoji-frown-fill text-danger me-1"></i> Negative ({{ negative_count }})
+    </a>
+</div>
+
+<!-- Search Bar -->
+<div class="card card-body mb-4 shadow-sm">
+    <form method="get" class="row g-2 align-items-center">
+        {% if request.GET.sentiment %}
+            <input type="hidden" name="sentiment" value="{{ request.GET.sentiment }}">
+        {% endif %}
+        <div class="col-md-9">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search"></i></span>
+                <input type="text" name="q" value="{{ request.GET.q|default:'' }}" class="form-control form-control-sm border-start-0" placeholder="Search by customer name, review comments, service...">
+            </div>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-primary btn-sm flex-grow-1 text-nowrap">
+                <i class="bi bi-funnel"></i> Search
+            </button>
+            {% if request.GET.q or request.GET.sentiment %}
+                <a href="{% url 'owner_feedbacks' %}" class="btn btn-outline-secondary btn-sm text-nowrap">
+                    <i class="bi bi-arrow-counterclockwise"></i> Reset
+                </a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Feedbacks Table Card -->
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3">
+        <h5 class="mb-0 fs-6"><i class="bi bi-chat-heart me-2"></i> Client Reviews & Sentiment Analysis</h5>
+        <span class="badge bg-light text-dark fw-semibold">{{ feedbacks|length }} Reviews Shown</span>
+    </div>
+    <div class="table-responsive" style="border-radius: 0 0 22px 22px;">
+        <table class="table align-middle mb-0" style="min-width: 960px;">
+            <thead>
+                <tr class="text-muted small text-uppercase" style="background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid var(--line);">
+                    <th style="width: 18%;" class="ps-3 py-3">Customer</th>
+                    <th style="width: 18%;" class="py-3">Service & Worker</th>
+                    <th style="width: 14%;" class="py-3">Rating</th>
+                    <th style="width: 24%;" class="py-3">Review / Comments</th>
+                    <th style="width: 14%;" class="py-3">Sentiment</th>
+                    <th style="width: 12%;" class="text-end pe-3 py-3">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fb in feedbacks %}
+                <tr style="border-bottom: 1px solid var(--line);">
+                    <!-- Customer Column -->
+                    <td class="ps-3 py-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm"
+                                 style="width: 36px; height: 36px; min-width: 36px; background: linear-gradient(135deg, #ab75ff, #ff86ae); font-size: 0.85rem;">
+                                {{ fb.customer.first_name|first|default:fb.customer.username|first|upper }}
+                            </div>
+                            <div class="overflow-hidden">
+                                <strong class="d-block text-truncate" style="max-width: 140px;">
+                                    {{ fb.customer.get_full_name|default:fb.customer.username }}
+                                </strong>
+                                <small class="text-muted d-block text-truncate" style="max-width: 140px;">{{ fb.customer.email }}</small>
+                            </div>
+                        </div>
+                    </td>
+
+                    <!-- Service & Worker Column -->
+                    <td class="py-3">
+                        <strong class="d-block text-truncate" style="max-width: 160px;">{{ fb.service.name|default:"General Service" }}</strong>
+                        {% if fb.appointment and fb.appointment.staff %}
+                            <span class="badge bg-info bg-opacity-25 text-info border border-info border-opacity-25 mt-1 small text-nowrap">
+                                <i class="bi bi-person-check me-1"></i>{{ fb.appointment.staff.name }}
+                            </span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Star Rating Column -->
+                    <td class="py-3">
+                        <div class="text-warning fw-bold fs-6 text-nowrap" style="letter-spacing: 1px;">
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= fb.rating %}★{% else %}<span class="text-muted opacity-25">★</span>{% endif %}
+                            {% endfor %}
+                        </div>
+                        <small class="text-muted fw-semibold">({{ fb.rating }}/5 stars)</small>
+                    </td>
+
+                    <!-- Review Text Column -->
+                    <td class="py-3">
+                        <p class="mb-1 text-break fst-italic" style="font-size: 0.88rem; line-height: 1.5;">
+                            "{{ fb.comments }}"
+                        </p>
+                        <small class="text-muted" style="font-size: 0.72rem;">
+                            {{ fb.created_at|date:"M d, Y" }} at {{ fb.created_at|time:"g:i A" }}
+                        </small>
+                    </td>
+
+                    <!-- Sentiment Column -->
+                    <td class="py-3">
+                        {% if fb.sentiment == 'POSITIVE' %}
+                            <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-25 text-nowrap px-2 py-1" style="font-size: 0.8rem;">
+                                <i class="bi bi-emoji-smile-fill me-1"></i> Positive
+                            </span>
+                            <small class="text-success fw-semibold d-block mt-1 text-nowrap" style="font-size: 0.7rem;">
+                                <i class="bi bi-check-circle-fill me-1"></i> On Home Page
+                            </small>
+                        {% elif fb.sentiment == 'NEGATIVE' %}
+                            <span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-25 text-nowrap px-2 py-1" style="font-size: 0.8rem;">
+                                <i class="bi bi-emoji-frown-fill me-1"></i> Negative
+                            </span>
+                            <small class="text-muted d-block mt-1 text-nowrap" style="font-size: 0.7rem;">
+                                Hidden from Home
+                            </small>
+                        {% else %}
+                            <span class="badge bg-info bg-opacity-25 text-info border border-info border-opacity-25 text-nowrap px-2 py-1" style="font-size: 0.8rem;">
+                                <i class="bi bi-emoji-neutral-fill me-1"></i> Neutral
+                            </span>
+                            <small class="text-muted d-block mt-1 text-nowrap" style="font-size: 0.7rem;">
+                                Hidden from Home
+                            </small>
+                        {% endif %}
+                        <small class="text-muted d-block mt-0.5" style="font-size: 0.68rem;">
+                            Score: {{ fb.sentiment_score|stringformat:"+0.2f" }}
+                        </small>
+                    </td>
+
+                    <!-- Actions Column -->
+                    <td class="text-end pe-3 py-3">
+                        <form method="post" action="{% url 'delete_feedback' fb.id %}" onsubmit="return confirm('Permanently delete this customer feedback?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap py-1 px-2" style="font-size: 0.78rem;" title="Delete Feedback">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-5 text-muted">
+                        <i class="bi bi-chat-square-quote display-4 d-block mb-2 text-muted opacity-50"></i>
+                        No customer feedbacks found matching these criteria.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

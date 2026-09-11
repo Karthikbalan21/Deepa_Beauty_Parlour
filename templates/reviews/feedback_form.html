@@ -1,0 +1,45 @@
+﻿{% extends "dashboard/dashboard_base.html" %}
+{% block dashboard_content %}
+<div class="card shadow-sm">
+  <div class="card-header bg-primary text-white">
+    <h4 class="mb-0"><i class="bi bi-star-fill text-warning me-2"></i> Service Feedback & Review</h4>
+  </div>
+  <div class="card-body p-4 p-md-5">
+    <div class="alert alert-light border mb-4">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <h5 class="mb-1 text-primary">{{ appointment.service.name }}</h5>
+          <small class="text-muted">
+            Visited on {{ appointment.appointment_date }} at {{ appointment.appointment_time|time:"g:i A" }}
+            {% if appointment.staff %}· Served by: <strong>{{ appointment.staff.name }}</strong>{% endif %}
+          </small>
+        </div>
+        <span class="badge bg-success">Completed Service</span>
+      </div>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="mb-4">
+        <label class="form-label fw-bold" for="{{ form.rating.id_for_label }}">How would you rate our service?</label>
+        {{ form.rating }}
+        {{ form.rating.errors }}
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label fw-bold" for="{{ form.comments.id_for_label }}">Your Feedback / Review for the Admin:</label>
+        {{ form.comments }}
+        {{ form.comments.errors }}
+        <div class="form-text">Your feedback helps us continuously elevate our beauty parlour services!</div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary btn-lg">
+          <i class="bi bi-send-fill me-1"></i> Submit Feedback
+        </button>
+        <a href="{% url 'my_appointments' %}" class="btn btn-secondary btn-lg">Back to Appointments</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

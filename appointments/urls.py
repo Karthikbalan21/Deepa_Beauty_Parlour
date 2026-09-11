@@ -6,11 +6,13 @@ from .views import (
     cancel_appointment,
     reschedule_appointment,
     upload_payment_proof,
+    submit_feedback,
 )
 urlpatterns = [
-    path("book/", book_appointment,name="book_appointment"),
-    path("my/",my_appointments,name="my_appointments"),
-    path("cancel/<int:pk>/",cancel_appointment,name="cancel_appointment"),
+    path("book/", book_appointment, name="book_appointment"),
+    path("my/", my_appointments, name="my_appointments"),
+    path("cancel/<int:pk>/", cancel_appointment, name="cancel_appointment"),
     path("reschedule/<int:pk>/", reschedule_appointment, name="reschedule_appointment"),
     path("payment/<int:pk>/", upload_payment_proof, name="upload_payment_proof"),
+    path("feedback/<int:pk>/", submit_feedback, name="submit_feedback"),
 ]
