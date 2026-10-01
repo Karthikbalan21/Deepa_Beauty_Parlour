@@ -6,7 +6,12 @@
         <h3 class="mb-0 page-title"><i class="bi bi-calendar-plus"></i> Book Appointment</h3>
     </div>
     <div class="card-body">
-        <p class="text-muted">Choose a service first, then select a team member available at that service location.</p>
+        <p class="text-muted">Choose a service and your preferred appointment date and time. The parlour will assign a team member.</p>
+        {% if not has_available_services %}
+            <div class="alert alert-info" role="status">
+                No services are currently available for booking. Please check back later or contact the parlour.
+            </div>
+        {% endif %}
         <form method="post" id="booking-form" novalidate>
             {% csrf_token %}
             <div class="row">
@@ -15,13 +20,6 @@
                     {{ form.service }}
                     <div class="invalid-feedback">Please choose a service.</div>
                     {{ form.service.errors }}
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label" for="{{ form.staff.id_for_label }}">Staff member</label>
-                    {{ form.staff }}
-                    <div class="form-text" id="staff-help">Select a service to see the matching team members.</div>
-                    <div class="invalid-feedback">Please choose a staff member.</div>
-                    {{ form.staff.errors }}
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label" for="{{ form.appointment_date.id_for_label }}">Appointment date</label>
@@ -46,24 +44,13 @@
         </form>
     </div>
 </div>
-{{ service_salons|json_script:"service-salons" }}
-{{ staff_salons|json_script:"staff-salons" }}
 <script>
 (() => {
-    const form = document.getElementById("booking-form"), service = document.getElementById("id_service"), staff = document.getElementById("id_staff"), date = document.getElementById("id_appointment_date");
-    const serviceSalons = JSON.parse(document.getElementById("service-salons").textContent), staffSalons = JSON.parse(document.getElementById("staff-salons").textContent);
+    const form = document.getElementById("booking-form"), date = document.getElementById("id_appointment_date");
     date.min = new Date().toISOString().split("T")[0];
     function validate(input) { input.setCustomValidity(""); const valid = input.checkValidity(); input.setCustomValidity(valid ? "" : "Please complete this field."); input.classList.toggle("is-invalid", !valid && input.value); input.classList.toggle("is-valid", valid && input.value); }
-    function filterStaff() {
-        const salonId = serviceSalons[service.value]; let selectedVisible = false;
-        [...staff.options].forEach(option => { if (!option.value) return; const visible = Boolean(salonId) && staffSalons[option.value] === salonId; option.hidden = !visible; option.disabled = !visible; if (option.selected && visible) selectedVisible = true; });
-        if (!selectedVisible) staff.value = "";
-        staff.disabled = !salonId;
-        document.getElementById("staff-help").textContent = salonId ? "Optional: Choose your preferred team member or leave as Auto-assign." : "Select a service to see the matching team members.";
-    }
-    [service, staff, date, document.getElementById("id_appointment_time")].forEach(input => { input.addEventListener("input", () => validate(input)); input.addEventListener("change", () => validate(input)); });
-    service.addEventListener("change", filterStaff); filterStaff();
-    form.addEventListener("submit", event => { filterStaff(); [...form.querySelectorAll("select, input[type=date], input[type=time]")].forEach(validate); if (!form.checkValidity()) { event.preventDefault(); form.classList.add("was-validated"); } });
+    [document.getElementById("id_service"), date, document.getElementById("id_appointment_time")].forEach(input => { input.addEventListener("input", () => validate(input)); input.addEventListener("change", () => validate(input)); });
+    form.addEventListener("submit", event => { [...form.querySelectorAll("select, input[type=date], input[type=time]")].forEach(validate); if (!form.checkValidity()) { event.preventDefault(); form.classList.add("was-validated"); } });
 })();
 </script>
 {% endblock %}

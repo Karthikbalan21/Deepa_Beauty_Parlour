@@ -35,11 +35,10 @@ def book_appointment(request):
 
 
 def _booking_context(form, **extra):
-    """Expose service/staff locations so the browser can guide a customer instantly."""
+    """Expose booking form state to the template."""
     context = {
         "form": form,
-        "service_salons": {str(service.id): service.salon_id for service in form.fields["service"].queryset},
-        "staff_salons": {str(staff.id): staff.salon_id for staff in form.fields["staff"].queryset},
+        "has_available_services": form.fields["service"].queryset.exists(),
     }
     context.update(extra)
     return context
